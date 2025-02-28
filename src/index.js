@@ -11,35 +11,16 @@ const fs = require("fs");
 const path = require("path");
 const { convertPdfToSingleImage } = require("./sticher");  // Ensure the file name is correct
 const sharp = require("sharp");
-
 const cors = require("cors");
-const cloudinary = require("cloudinary").v2;
 const axios = require("axios");
+
+const { initializeCloudinary, uploadImage } = require("./cloudinary");
 
 // Log after imports
 console.log("=== IMPORTS COMPLETED ===");
 
-// Configure Cloudinary with environment variables
-try {
-    console.log("=== CONFIGURING CLOUDINARY ===");
-    
-    cloudinary.config({
-        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-        api_key: process.env.CLOUDINARY_API_KEY,
-        api_secret: process.env.CLOUDINARY_API_SECRET
-    });
-    
-    // Verify configuration
-    const config = cloudinary.config();
-    console.log("Cloudinary Config Object:", {
-        cloud_name: config.cloud_name,
-        api_key: config.api_key ? "Present" : "Missing",
-        api_secret: config.api_secret ? "Present" : "Missing"
-    });
-} catch (error) {
-    console.error("=== CLOUDINARY CONFIG ERROR ===");
-    console.error(error);
-}
+// Remove the old Cloudinary config block and add this line
+initializeCloudinary();
 
 // Initialize Express
 console.log("=== INITIALIZING EXPRESS ===");
@@ -105,17 +86,7 @@ app.post("/stitch", async (req, res) => {
 
     try {
       const timestamp = Date.now();
-      const imageName = `stitched_${timestamp}`;
-      
-      const uploadResult = await cloudinary.uploader.upload(
-        compressedOutputPath, // Use compressed image
-        {
-          public_id: imageName,
-          folder: 'stiched_image',
-          resource_type: 'image',
-          overwrite: true
-        }
-      );
+      const uploadResult = await uploadImage(compressedOutputPath, timestamp);
 
       // Cleanup files and folders
       try {
@@ -134,11 +105,7 @@ app.post("/stitch", async (req, res) => {
 
       res.json({
         success: true,
-        imageUrl: uploadResult.secure_url,
-        optimizedUrl: cloudinary.url(`stiched_image/${imageName}`, {
-          fetch_format: 'auto',
-          quality: 'auto'
-        })
+        ...uploadResult
       });
 
     } catch (uploadError) {
