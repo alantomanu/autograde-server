@@ -1,20 +1,22 @@
 // Add dotenv import at the top
-require('dotenv').config();
+import express from 'express';
+import axios from 'axios';
+import dotenv from 'dotenv';
+import fileUpload from 'express-fileupload';
+import fs from 'fs';
+import path from 'path';
+import { convertPdfToSingleImage } from './sticher.js';  // Ensure the file name is correct
+import sharp from 'sharp';
+import cors from 'cors';
+import { processImageWithAI } from './ocr.js';
+import { initializeCloudinary, uploadImage } from './cloudinary.js';
+import { fileURLToPath } from 'url';
+
+// Load environment variables from .env file
+dotenv.config();
 
 // First, log that we're starting
 console.log("=== SCRIPT START ===");
-
-// Import statements
-const express = require("express");
-const fileUpload = require("express-fileupload");
-const fs = require("fs");
-const path = require("path");
-const { convertPdfToSingleImage } = require("./sticher");  // Ensure the file name is correct
-const sharp = require("sharp");
-const cors = require("cors");
-const axios = require("axios");
-
-const { initializeCloudinary, uploadImage } = require("./cloudinary");
 
 // Log after imports
 console.log("=== IMPORTS COMPLETED ===");
@@ -25,7 +27,10 @@ initializeCloudinary();
 // Initialize Express
 console.log("=== INITIALIZING EXPRESS ===");
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
+
+// Configure __dirname for ES modules
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Enable CORS
 app.use(cors());
@@ -43,7 +48,7 @@ if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
 // Health Check
 app.get("/", (req, res) => {
-  res.send("Stitcher API is running!");
+  res.send("API is running!");
 });
 
 // Endpoint to process PDF and return stitched image
@@ -123,6 +128,29 @@ app.post("/stitch", async (req, res) => {
       success: false,
       error: "Processing failed",
       details: error.message
+    });
+  }
+});
+
+// OCR processing endpoint
+app.post('/process-image', async (req, res) => {
+  try {
+    const { imageUrl } = req.body;
+    console.log('Received request with imageUrl:', imageUrl);
+
+    if (!imageUrl) {
+      return res.status(400).json({ error: 'Image URL is required' });
+    }
+
+    const result = await processImageWithAI(imageUrl, process.env.TOGETHER_API_KEY);
+    res.json(result);
+
+  } catch (error) {
+    console.error('Error processing image:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to process image',
+      details: error.message 
     });
   }
 });

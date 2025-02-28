@@ -1,4 +1,4 @@
-const cloudinary = require("cloudinary").v2;
+import { v2 as cloudinary } from 'cloudinary';
 
 // Configure Cloudinary with environment variables
 const initializeCloudinary = () => {
@@ -47,4 +47,4 @@ const uploadImage = async (imagePath, timestamp) => {
     };
 };
 
-module.exports = { initializeCloudinary, uploadImage }; 
+export { initializeCloudinary, uploadImage }; 

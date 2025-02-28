@@ -1,9 +1,10 @@
-const sharp = require('sharp');
-const fs = require('fs').promises;
-const path = require('path');
-const { exec } = require('child_process');
-const util = require('util');
-const execPromise = util.promisify(exec);
+import sharp from 'sharp';
+import { promises as fs } from 'fs';
+import path from 'path';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execPromise = promisify(exec);
 
 async function convertPdfToSingleImage(
   pdfPath,
@@ -95,4 +96,4 @@ async function convertPdfToSingleImage(
   }
 }
 
-module.exports = { convertPdfToSingleImage };
+export { convertPdfToSingleImage };
