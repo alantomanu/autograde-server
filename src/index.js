@@ -3,7 +3,7 @@ import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import fileUpload from 'express-fileupload';
-import fs from 'fs';
+import fs from 'fs/promises';
 import path from 'path';
 import { convertPdfToSingleImage } from './sticher.js';  // Ensure the file name is correct
 import sharp from 'sharp';
@@ -43,8 +43,23 @@ app.use(express.json());
 const uploadDir = path.join(__dirname, "../uploads");
 const outputDir = path.join(__dirname, "../output");
 
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+async function createDirectory(path) {
+  try {
+    await fs.access(path);
+    console.log("Given Directory already exists !!");
+  } catch (error) {
+    // If the directory does not exist, create it
+    try {
+      await fs.mkdir(path, { recursive: true });
+      console.log("New Directory created successfully !!");
+    } catch (mkdirError) {
+      console.error("Error creating directory:", mkdirError);
+    }
+  }
+}
+
+createDirectory(uploadDir);
+createDirectory(outputDir);
 
 // Health Check
 app.get("/", (req, res) => {
@@ -69,7 +84,7 @@ app.post("/stitch", async (req, res) => {
     // Save PDF temporarily
     const pdfFileName = `temp-${Date.now()}.pdf`;
     const pdfPath = path.join(uploadDir, pdfFileName);
-    await fs.promises.writeFile(pdfPath, response.data);
+    await fs.writeFile(pdfPath, response.data);
 
     // Process PDF to image
     const outputFileName = `output-${Date.now()}.png`;
@@ -95,15 +110,15 @@ app.post("/stitch", async (req, res) => {
 
       // Cleanup files and folders
       try {
-        await fs.promises.unlink(pdfPath);
-        await fs.promises.unlink(outputPath);
-        await fs.promises.unlink(compressedOutputPath);
+        await fs.unlink(pdfPath);
+        await fs.unlink(outputPath);
+        await fs.unlink(compressedOutputPath);
 
-        const uploadFiles = await fs.promises.readdir(uploadDir);
-        const outputFiles = await fs.promises.readdir(outputDir);
+        const uploadFiles = await fs.readdir(uploadDir);
+        const outputFiles = await fs.readdir(outputDir);
 
-        if (uploadFiles.length === 0) await fs.promises.rmdir(uploadDir);
-        if (outputFiles.length === 0) await fs.promises.rmdir(outputDir);
+        if (uploadFiles.length === 0) await fs.rmdir(uploadDir);
+        if (outputFiles.length === 0) await fs.rmdir(outputDir);
       } catch (cleanupError) {
         console.error('Cleanup error:', cleanupError);
       }
