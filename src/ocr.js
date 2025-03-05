@@ -36,7 +36,7 @@ async function processImageWithAI(imageUrl, apiKey) {
             {
                 role: 'user',
                 content: [
-                    { type: 'text', text: 'just print margin number and answers as it is for valuvation so no formatting is required and no explanation and donot add any extra text.also donot create custom margin number' },
+                    { type: 'text', text: 'just print margin number and answers as it is for valuvation so no formatting is required and no explanation and do not add any extra text. Also donot create custom margin number' },
                     {
                         type: 'image_url',
                         image_url: { url: imageUrl },

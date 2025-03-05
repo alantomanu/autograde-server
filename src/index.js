@@ -58,8 +58,7 @@ async function createDirectory(path) {
   }
 }
 
-createDirectory(uploadDir);
-createDirectory(outputDir);
+
 
 // Health Check
 app.get("/", (req, res) => {
@@ -68,6 +67,8 @@ app.get("/", (req, res) => {
 
 // Endpoint to process PDF and return stitched image
 app.post("/stitch", async (req, res) => {
+createDirectory(uploadDir);
+createDirectory(outputDir);
   try {
     const { pdfUrl, forceReprocess } = req.body;
 
