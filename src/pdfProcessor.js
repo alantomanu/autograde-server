@@ -23,6 +23,12 @@ export const parseAnswerKeyToJSON = (text) => {
       line.toLowerCase() !== 'answer key' && 
       line.toLowerCase() !== 'question number grading logic');
   
+  // Validate the format of the answer key
+  const invalidLines = lines.filter(line => !/^\d+\s+.+/.test(line));
+  if (invalidLines.length === lines.length) {
+    throw new Error('Answer key does not follow the desired format. Please download the answer key template.');
+  }
+
   const result = {};
   let currentQuestion = null;
   let currentDetails = '';
