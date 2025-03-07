@@ -11,6 +11,7 @@ import cors from 'cors';
 import { processImageWithAI } from './ocr.js';
 import { initializeCloudinary, uploadImage } from './cloudinary.js';
 import { fileURLToPath } from 'url';
+import { extractTextFromPDF, parseAnswerKeyToJSON } from './pdfProcessor.js';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -168,6 +169,32 @@ app.post('/process-image', async (req, res) => {
       error: 'Failed to process image',
       details: error.message 
     });
+  }
+});
+
+// Endpoint to process PDF and convert to JSON
+app.post('/convert-pdf', async (req, res) => {
+  try {
+    const { pdfUrl } = req.body;
+
+    if (!pdfUrl) {
+      return res.status(400).json({ error: 'PDF URL is required' });
+    }
+
+    console.log(`Processing PDF from URL: ${pdfUrl}`);
+
+    const response = await axios.get(pdfUrl, { responseType: 'arraybuffer' });
+    const pdfBuffer = Buffer.from(response.data);
+
+    const extractedText = await extractTextFromPDF(pdfBuffer);
+
+    const jsonData = parseAnswerKeyToJSON(extractedText);
+
+    res.json({ success: true, data: jsonData });
+
+  } catch (error) {
+    console.error('Error processing PDF:', error);
+    res.status(500).json({ success: false, error: error.message || 'Failed to process PDF' });
   }
 });
 
