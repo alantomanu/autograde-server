@@ -34,39 +34,27 @@ export const parseAnswerKeyToJSON = (text) => {
   let currentDetails = '';
 
   lines.forEach(line => {
-    const questionMatch = line.match(/^(\d+)\s*(.+)/);
+    // Look for lines starting with a number followed by text
+    const questionMatch = line.match(/^(\d+)[\s|](.+)/);
 
     if (questionMatch) {
+      // If we have a previous question stored, save it
       if (currentQuestion !== null) {
-        const maxMarkMatch = currentDetails.match(/\(max\.mark:(\d+)\)/);
-        if (maxMarkMatch) {
-          result[currentQuestion] = currentDetails.trim();
-        } else {
-          currentDetails += ' ' + line;
-        }
+        result[currentQuestion] = currentDetails.trim();
       }
 
+      // Start new question
       currentQuestion = questionMatch[1];
       currentDetails = questionMatch[2];
-    } else {
-      if (currentQuestion !== null) {
-        currentDetails += ' ' + line;
-        
-        const maxMarkMatch = currentDetails.match(/\(max\.mark:(\d+)\)/);
-        if (maxMarkMatch) {
-          result[currentQuestion] = currentDetails.trim();
-          currentQuestion = null;
-          currentDetails = '';
-        }
-      }
+    } else if (currentQuestion !== null) {
+      // Append non-question lines to current question details
+      currentDetails += ' ' + line;
     }
   });
 
+  // Save the last question if exists
   if (currentQuestion !== null) {
-    const maxMarkMatch = currentDetails.match(/\(max\.mark:(\d+)\)/);
-    if (maxMarkMatch) {
-      result[currentQuestion] = currentDetails.trim();
-    }
+    result[currentQuestion] = currentDetails.trim();
   }
 
   return result;
