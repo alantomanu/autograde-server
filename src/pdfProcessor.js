@@ -40,7 +40,11 @@ export const parseAnswerKeyToJSON = (text) => {
     if (questionMatch) {
       // If we have a previous question stored, save it
       if (currentQuestion !== null) {
-        result[currentQuestion] = currentDetails.trim();
+        // Create an object with logic and diagram flag
+        result[currentQuestion] = {
+          logic: currentDetails.trim(),
+          diagram: hasDiagramReference(currentDetails)
+        };
       }
 
       // Start new question
@@ -54,8 +58,19 @@ export const parseAnswerKeyToJSON = (text) => {
 
   // Save the last question if exists
   if (currentQuestion !== null) {
-    result[currentQuestion] = currentDetails.trim();
+    result[currentQuestion] = {
+      logic: currentDetails.trim(),
+      diagram: hasDiagramReference(currentDetails)
+    };
   }
 
   return result;
+};
+
+// Helper function to check for diagram references
+const hasDiagramReference = (text) => {
+  const diagramKeywords = ['diagram', 'figure', 'fig', 'drawing', 'illustration','block diagram','flow chart','tables'];
+  return diagramKeywords.some(keyword => 
+    text.toLowerCase().includes(keyword)
+  );
 };
