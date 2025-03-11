@@ -12,6 +12,7 @@ import { processImageWithAI } from './ocr.js';
 import { initializeCloudinary, uploadImage } from './cloudinary.js';
 import { fileURLToPath } from 'url';
 import { extractTextFromPDF, parseAnswerKeyToJSON } from './pdfProcessor.js';
+import { evaluateAnswerSheet, evaluateSingleAnswer } from './evaluator.js';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -195,6 +196,27 @@ app.post('/convert-pdf', async (req, res) => {
   } catch (error) {
     console.error('Error processing PDF:', error);
     res.status(500).json({ success: false, error: error.message || 'Failed to process PDF' });
+  }
+});
+
+// Add these new endpoints before the server start
+app.post('/evaluate', async (req, res) => {
+  try {
+    const result = await evaluateAnswerSheet(req.body);
+    res.json(result);
+  } catch (error) {
+    console.error('Error evaluating answers:', error);
+    res.status(500).json({ success: false, error: "Internal server error: " + error.message });
+  }
+});
+
+app.post('/evaluate-single', async (req, res) => {
+  try {
+    const result = await evaluateSingleAnswer(req.body);
+    res.json({ success: true, result });
+  } catch (error) {
+    console.error('Error evaluating answer:', error);
+    res.status(500).json({ success: false, error: "Internal server error: " + error.message });
   }
 });
 
