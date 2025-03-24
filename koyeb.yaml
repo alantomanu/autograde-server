@@ -1,0 +1,26 @@
+name: pdf-to-image-stitcher
+service:
+  name: api
+  ports:
+    - port: 3000
+      http: "/"
+  env:
+    - name: NODE_VERSION
+      value: "20"
+    - name: CLOUDINARY_CLOUD_NAME
+      value: dfivs4n49
+    - name: CLOUDINARY_API_KEY
+      secret: cloudinary-api-key
+    - name: CLOUDINARY_API_SECRET
+      secret: cloudinary-api-secret
+    - name: TOGETHER_API_KEY
+      secret: together-api-key
+    - name: CLOUDCONVERT_API_KEY
+      secret: cloudconvert-api-key
+  routes:
+    - path: /
+      public: true
+  scale:
+    horizontal:
+      min: 1
+      max: 1 

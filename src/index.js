@@ -34,7 +34,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Enable CORS
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://your-frontend-domain.com'],
+  origin: ['http://localhost:3000', 'https://your-frontend-domain.com', 'https://*.koyeb.app'],
   methods: ['GET', 'POST'],
   credentials: true
 }));
@@ -70,7 +70,7 @@ app.get("/", (req, res) => {
 });
 
 // OCR processing endpoint
-app.post('/perform-ocr', async (req, res) => {
+app.post('/ ', async (req, res) => {
   try {
     const { pdfUrl } = req.body;
     console.log('Received request with pdfUrl:', pdfUrl);
