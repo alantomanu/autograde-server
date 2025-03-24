@@ -33,7 +33,11 @@ const PORT = process.env.PORT || 3000;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Enable CORS
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:3000', 'https://your-frontend-domain.com'],
+  methods: ['GET', 'POST'],
+  credentials: true
+}));
 
 // Enable file upload
 app.use(fileUpload());
