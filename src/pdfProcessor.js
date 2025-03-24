@@ -69,7 +69,7 @@ export const parseAnswerKeyToJSON = (text) => {
 
 // Helper function to check for diagram references
 const hasDiagramReference = (text) => {
-  const diagramKeywords = ['diagram', 'figure', 'fig', 'drawing', 'illustration','block diagram','flow chart','tables'];
+  const diagramKeywords = ['diagram', 'figure', 'fig', 'drawing', 'illustration','block diagram','flow chart','tabl'];
   return diagramKeywords.some(keyword => 
     text.toLowerCase().includes(keyword)
   );

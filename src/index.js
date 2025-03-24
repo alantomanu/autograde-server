@@ -1,13 +1,11 @@
 // Add dotenv import at the top
 import express from 'express';
+import cors from 'cors';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import fileUpload from 'express-fileupload';
 import fs from 'fs/promises';
 import path from 'path';
-import { convertPdfToSingleImage } from './sticher.js';  // Ensure the file name is correct
-import sharp from 'sharp';
-import cors from 'cors';
 import { processImageWithAI } from './ocr.js';
 import { initializeCloudinary, uploadImage } from './cloudinary.js';
 import { fileURLToPath } from 'url';
@@ -67,107 +65,24 @@ app.get("/", (req, res) => {
   res.send("API is running!");
 });
 
-// Endpoint to process PDF and return stitched image
-app.post("/stitch", async (req, res) => {
-createDirectory(uploadDir);
-createDirectory(outputDir);
+// OCR processing endpoint
+app.post('/perform-ocr', async (req, res) => {
   try {
-    const { pdfUrl, forceReprocess } = req.body;
+    const { pdfUrl } = req.body;
+    console.log('Received request with pdfUrl:', pdfUrl);
 
     if (!pdfUrl) {
-      return res.status(400).json({ error: "No PDF URL provided" });
+      return res.status(400).json({ error: 'PDF URL is required' });
     }
 
-    // Download PDF from URL
-    const response = await axios({
-      url: pdfUrl,
-      responseType: 'arraybuffer'
-    });
-
-    // Save PDF temporarily
-    const pdfFileName = `temp-${Date.now()}.pdf`;
-    const pdfPath = path.join(uploadDir, pdfFileName);
-    await fs.writeFile(pdfPath, response.data);
-
-    // Process PDF to image
-    const outputFileName = `output-${Date.now()}.png`;
-    const outputPath = path.join(outputDir, outputFileName);
-    await convertPdfToSingleImage(pdfPath, outputPath);
-
-    // Compress the image before uploading to Cloudinary
-    const compressedOutputPath = path.join(outputDir, `compressed_${Date.now()}.png`);
-    await sharp(outputPath)
-      .resize(2000, null, { // Limit width to 2000px
-        withoutEnlargement: true,
-        fit: 'inside'
-      })
-      .png({ 
-        quality: 80,
-        compressionLevel: 9
-      })
-      .toFile(compressedOutputPath);
-
-    try {
-      const timestamp = Date.now();
-      const uploadResult = await uploadImage(compressedOutputPath, timestamp);
-
-      // Cleanup files and folders
-      try {
-        await fs.unlink(pdfPath);
-        await fs.unlink(outputPath);
-        await fs.unlink(compressedOutputPath);
-
-        const uploadFiles = await fs.readdir(uploadDir);
-        const outputFiles = await fs.readdir(outputDir);
-
-        if (uploadFiles.length === 0) await fs.rmdir(uploadDir);
-        if (outputFiles.length === 0) await fs.rmdir(outputDir);
-      } catch (cleanupError) {
-        console.error('Cleanup error:', cleanupError);
-      }
-
-      res.json({
-        success: true,
-        ...uploadResult
-      });
-
-    } catch (uploadError) {
-      console.error('Cloudinary Upload Error:', uploadError);
-      res.status(500).json({
-        success: false,
-        error: "Upload failed",
-        details: uploadError.message
-      });
-    }
-
-  } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({
-      success: false,
-      error: "Processing failed",
-      details: error.message
-    });
-  }
-});
-
-// OCR processing endpoint
-app.post('/process-image', async (req, res) => {
-  try {
-    const { imageUrl } = req.body;
-    console.log('Received request with imageUrl:', imageUrl);
-
-    if (!imageUrl) {
-      return res.status(400).json({ error: 'Image URL is required' });
-    }
-
-    const result = await processImageWithAI(imageUrl, process.env.TOGETHER_API_KEY);
+    const result = await processImageWithAI(pdfUrl, process.env.TOGETHER_API_KEY);
     res.json(result);
 
   } catch (error) {
-    console.error('Error processing image:', error);
+    console.error('Error processing OCR:', error);
     res.status(500).json({ 
       success: false,
-      error: 'Failed to process image',
+      error: 'Failed to process OCR',
       details: error.message 
     });
   }
