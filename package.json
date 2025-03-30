@@ -1,7 +1,7 @@
 {
-    "name": "pdf-to-image-stitcher",
+    "name": "autograde-server",
     "version": "1.0.0",
-    "description": "Convert PDF to a single stitched image using Node.js and Sharp",
+    "description": "server for autograde build using node.js and express",
     "main": "src/index.js",
     "type": "module",
     "scripts": {
@@ -15,7 +15,6 @@
         "dotenv": "^16.4.7",
         "express": "^4.18.2",
         "express-fileupload": "^1.4.3",
-        "sharp": "^0.33.5",
         "together-ai": "^0.13.0",
         "pdf-parse": "^1.1.1",
         "mammoth": "^1.6.0",
