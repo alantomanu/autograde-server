@@ -1,0 +1,28 @@
+# Node.js specific
+node_modules
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Environment files
+.env
+.env.*
+
+# Development files
+.git
+.gitignore
+README.md
+Dockerfile
+.dockerignore
+
+# Application specific
+uploads/*
+output/*
+tests/
+docs/
+*.test.js
+*.spec.js
+
+# OS specific
+.DS_Store
+Thumbs.db 

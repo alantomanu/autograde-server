@@ -7,7 +7,6 @@ import fileUpload from 'express-fileupload';
 import fs from 'fs/promises';
 import path from 'path';
 import { processImageWithAI } from './ocr.js';
-import { initializeCloudinary, uploadImage } from './cloudinary.js';
 import { fileURLToPath } from 'url';
 import { extractTextFromPDF, parseAnswerKeyToJSON } from './pdfProcessor.js';
 import { evaluateAnswerSheet, evaluateSingleAnswer } from './evaluator.js';
@@ -21,8 +20,6 @@ console.log("=== SCRIPT START ===");
 // Log after imports
 console.log("=== IMPORTS COMPLETED ===");
 
-// Remove the old Cloudinary config block and add this line
-initializeCloudinary();
 
 // Initialize Express
 console.log("=== INITIALIZING EXPRESS ===");

@@ -1,20 +1,23 @@
 import Together from "together-ai";
 import https from 'https';
 import fs from "fs";
-import pdf from "pdf-poppler";
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const execPromise = promisify(exec);
+
 async function getPDFPageCount(pdfPath) {
     console.log('Getting PDF page count for:', pdfPath);
     try {
-        const opts = { format: "jpeg", out_dir: "./temp", out_prefix: "page" };
-        const info = await pdf.info(pdfPath, opts);
-        console.log('PDF info:', info);
-        return info.pages || 1;
+        const { stdout } = await execPromise(`pdfinfo "${pdfPath}"`);
+        const pages = stdout.match(/Pages:\s+(\d+)/);
+        return pages ? parseInt(pages[1]) : 1;
     } catch (error) {
         console.error('Error getting PDF page count:', error);
         throw error;
@@ -47,8 +50,8 @@ function formatAnswersToJson(text) {
     return { answers };
 }
 
-function getImagePath(pageNumber) {
-    return `./temp/page-${pageNumber.toString().padStart(2, "0")}.jpg`;
+function getImagePath(pageNumber, tempDir) {
+    return path.join(tempDir, `page-${pageNumber.toString().padStart(2, "0")}.jpg`);
 }
 
 async function downloadFile(url, outputPath) {
@@ -106,24 +109,69 @@ async function processImageWithAI(pdfUrl, apiKey) {
     }
 }
 
-async function convertPDFToImage(pdfPath, pageNumber) {
-    const opts = {
-        format: "jpeg",
-        out_dir: "./temp",
-        out_prefix: "page",
-        page: pageNumber,
-        quality: 100, // Higher quality for better OCR
-    };
+async function convertPDFToImage(pdfPath, pageNumber, tempDir) {
+    try {
+        // Create a base name for the output file without extension
+        const baseName = path.join(tempDir, `page-${pageNumber.toString().padStart(2, "0")}`);
+        
+        console.log('PDF conversion details:', {
+            pdfPath,
+            baseName,
+            tempDir,
+            pageNumber
+        });
 
-    await pdf.convert(pdfPath, opts);
-    const generatedPath = `./temp/page-${pageNumber}.jpg`;
-    const desiredPath = getImagePath(pageNumber);
-
-    if (fs.existsSync(generatedPath) && generatedPath !== desiredPath) {
-        fs.renameSync(generatedPath, desiredPath);
+        // Ensure the directory exists
+        await fs.promises.mkdir(tempDir, { recursive: true });
+        
+        // Execute pdftoppm with more detailed options
+        const command = `pdftoppm -jpeg -f ${pageNumber} -l ${pageNumber} -r 300 "${pdfPath}" "${baseName}"`;
+        console.log('Executing command:', command);
+        
+        const { stdout, stderr } = await execPromise(command);
+        if (stderr) {
+            console.error('pdftoppm stderr:', stderr);
+        }
+        
+        // Wait for the file system
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Check for both possible filenames
+        const possibleFiles = [
+            `${baseName}-1.jpg`,
+            `${baseName}-${pageNumber}.jpg`
+        ];
+        
+        console.log('Looking for output files:', possibleFiles);
+        
+        let outputFile = null;
+        for (const file of possibleFiles) {
+            if (fs.existsSync(file)) {
+                outputFile = file;
+                break;
+            }
+        }
+        
+        if (!outputFile) {
+            console.error('Expected output file not found');
+            const files = await fs.promises.readdir(tempDir);
+            console.log('Files in temp directory:', files);
+            throw new Error(`PDF conversion failed: output file not created. Checked paths: ${possibleFiles.join(', ')}`);
+        }
+        
+        // Return the path to the found file
+        console.log('Successfully created image at:', outputFile);
+        return outputFile;
+    } catch (error) {
+        console.error('Error in convertPDFToImage:', error);
+        console.error('Error details:', {
+            message: error.message,
+            command: error.cmd,
+            stderr: error.stderr,
+            stdout: error.stdout
+        });
+        throw error;
     }
-
-    return desiredPath;
 }
 
 async function getMarkDown(params) {
@@ -158,7 +206,25 @@ async function getMarkDown(params) {
 }
 
 function encodeImage(filePath) {
-    return fs.readFileSync(filePath).toString("base64");
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (attempts < maxAttempts) {
+        try {
+            if (!fs.existsSync(filePath)) {
+                throw new Error(`File does not exist: ${filePath}`);
+            }
+            return fs.readFileSync(filePath).toString("base64");
+        } catch (error) {
+            attempts++;
+            if (attempts === maxAttempts) {
+                throw error;
+            }
+            // Wait 1 second before retrying
+            console.log(`Retry ${attempts} reading file: ${filePath}`);
+            new Promise(resolve => setTimeout(resolve, 1000));
+        }
+    }
 }
 
 function processPageText(
@@ -248,28 +314,31 @@ async function ocr({
     apiKey,
     model = "Llama-3.2-90B-Vision",
 }) {
-    console.log('Starting OCR process with:', { filePath, model });
-    let localFilePath = filePath;
-    
-    // Create temp directory if it doesn't exist
-    if (!fs.existsSync('./temp')) {
-        console.log('Creating temp directory');
-        fs.mkdirSync('./temp', { recursive: true });
-    }
+    // Create a unique temp directory for this request
+    const tempDir = path.join('./temp', Date.now().toString());
+    console.log('Creating temp directory:', tempDir);
     
     try {
-        // Download file if it's a remote PDF
-        if (isRemoteFile(filePath) && filePath.toLowerCase().endsWith('.pdf')) {
-            console.log('Downloading remote PDF file');
-            const tempPdfPath = path.join('./temp', 'temp.pdf');
+        await fs.promises.mkdir(tempDir, { recursive: true });
+        let localFilePath = filePath;
+        
+        if (isRemoteFile(filePath)) {
+            console.log('Downloading remote file:', filePath);
+            const tempPdfPath = path.join(tempDir, 'temp.pdf');
             localFilePath = await downloadFile(filePath, tempPdfPath);
-            console.log('PDF downloaded to:', localFilePath);
+            console.log('Downloaded to:', localFilePath);
+            
+            // Verify the downloaded file exists and has content
+            const stats = await fs.promises.stat(localFilePath);
+            console.log('Downloaded file size:', stats.size);
+            if (stats.size === 0) {
+                throw new Error('Downloaded file is empty');
+            }
         }
 
-        if (localFilePath.toLowerCase().endsWith(".pdf")) {
-            console.log('Processing PDF file');
+        if (localFilePath.toLowerCase().endsWith('.pdf')) {
             const pageCount = await getPDFPageCount(localFilePath);
-            console.log(`PDF has ${pageCount} pages`);
+            console.log(`Processing PDF with ${pageCount} pages from ${localFilePath}`);
             let allResponses = [];
             let lastMarginNumber = null;
             let lastAnswer = [];
@@ -278,7 +347,7 @@ async function ocr({
 
             for (let page = 1; page <= pageCount; page++) {
                 console.log(`Processing page ${page}/${pageCount}`);
-                const imageFilePath = await convertPDFToImage(localFilePath, page);
+                const imageFilePath = await convertPDFToImage(localFilePath, page, tempDir);
                 console.log(`Created image for page ${page} at: ${imageFilePath}`);
                 
                 const visionLLM = model === "free"
@@ -318,11 +387,6 @@ async function ocr({
                 lastAnswer = lastProcessedAnswer;
 
                 console.log(`Processed page ${page}, current answers count: ${allResponses.length}`);
-
-                // Clean up page image after processing
-                if (fs.existsSync(imageFilePath)) {
-                    fs.unlinkSync(imageFilePath);
-                }
             }
 
             // Clean up downloaded PDF if it was temporary
@@ -362,10 +426,18 @@ async function ocr({
         console.error('Stack trace:', error.stack);
         throw error;
     } finally {
-        // Cleanup moved here after all processing is complete
-        console.log('Cleaning up temporary files');
-        if (fs.existsSync('./temp')) {
-            fs.rmSync('./temp', { recursive: true, force: true });
+        // Cleanup temp directory
+        try {
+            if (fs.existsSync(tempDir)) {
+                const files = await fs.promises.readdir(tempDir);
+                for (const file of files) {
+                    await fs.promises.unlink(path.join(tempDir, file));
+                }
+                await fs.promises.rmdir(tempDir);
+                console.log('Cleaned up temp directory:', tempDir);
+            }
+        } catch (cleanupError) {
+            console.error('Error during cleanup:', cleanupError);
         }
     }
 }
