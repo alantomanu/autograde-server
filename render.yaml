@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: autograde-server
+    env: docker
+    dockerCommand: node src/index.js
+    image:
+      url: docker.io/alantomanu/autograde-server:latest
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: TOGETHER_API_KEY
+        sync: false
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /
+    plan: starter
+    scaling:
+      minInstances: 1
+      maxInstances: 1
+    autoDeploy: true
+    ports:
+      - port: 5000
+        protocol: TCP 
