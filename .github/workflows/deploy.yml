@@ -32,3 +32,4 @@ jobs:
           app-name: autograde-server
           service-name: autograde-server
           docker: alantomanu/autograde-server:latest
+          service-instance-type: micro 
