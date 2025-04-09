@@ -20,3 +20,8 @@ jobs:
 
       - name: Push image to Docker Hub
         run: docker push alantomanu/autograde-server:latest
+
+      - name: Trigger Koyeb redeployment
+        run: |
+          curl -X POST https://app.koyeb.com/v1/services/6db51836-05ab-4bee-9fd7-729f96c1efb8/deploy \
+            -H "Authorization: Bearer ${{ secrets.KOYEB_API_TOKEN }}"
