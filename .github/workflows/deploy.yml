@@ -34,3 +34,5 @@ jobs:
           docker: alantomanu/autograde-server:latest
           service-instance-type: free
           service-regions: fra
+          service-ports: "8000:http"
+          service-routes: "/:8000"
