@@ -11,32 +11,32 @@ import { fileURLToPath } from 'url';
 import { extractTextFromPDF, parseAnswerKeyToJSON } from './pdfProcessor.js';
 import { evaluateAnswerSheet, evaluateSingleAnswer } from './evaluator.js';
 
-// Load environment variables from .env file
+
 dotenv.config();
 
-// First, log that we're starting
+
 console.log("=== SCRIPT START ===");
 
-// Log after imports
+
 console.log("=== IMPORTS COMPLETED ===");
 
 
-// Initialize Express
+
 console.log("=== INITIALIZING EXPRESS ===");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configure __dirname for ES modules
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Enable CORS
+
 app.use(cors());
 
-// Enable file upload
+
 app.use(fileUpload());
 app.use(express.json());
 
-// Ensure upload directories exist
+
 const uploadDir = path.join(__dirname, "../uploads");
 const outputDir = path.join(__dirname, "../output");
 
@@ -45,7 +45,7 @@ async function createDirectory(path) {
     await fs.access(path);
     console.log("Given Directory already exists !!");
   } catch (error) {
-    // If the directory does not exist, create it
+    
     try {
       await fs.mkdir(path, { recursive: true });
       console.log("New Directory created successfully !!");
@@ -57,12 +57,12 @@ async function createDirectory(path) {
 
 
 
-// Health Check
+
 app.get("/", (req, res) => {
   res.send("API is running!");
 });
 
-// OCR processing endpoint
+
 app.post('/perform-ocr', async (req, res) => {
   try {
     const { pdfUrl } = req.body;
@@ -85,7 +85,7 @@ app.post('/perform-ocr', async (req, res) => {
   }
 });
 
-// Endpoint to process PDF and convert to JSON
+
 app.post('/convert-pdf', async (req, res) => {
   try {
     const { pdfUrl } = req.body;
@@ -111,7 +111,7 @@ app.post('/convert-pdf', async (req, res) => {
   }
 });
 
-// Add these new endpoints before the server start
+
 app.post('/evaluate', async (req, res) => {
   try {
     const result = await evaluateAnswerSheet(req.body);
@@ -132,7 +132,7 @@ app.post('/evaluate-single', async (req, res) => {
   }
 });
 
-// Serve the output images
+
 app.use("/output", express.static(outputDir));
 
 // Start server

@@ -1,15 +1,14 @@
 import Together from 'together-ai';
 import dotenv from 'dotenv';
 
-// Load environment variables
+
 dotenv.config();
 
-// Initialize Together AI client
 const together = new Together({
   apiKey: process.env.TOGETHER_API_KEY || 'your-api-key-here'
 });
 
-// Function to evaluate using rule-based approach
+
 function evaluateRuleBased(answer, answerKey) {
   const questionNumber = answer.marginNumber.toString();
 
@@ -25,15 +24,15 @@ function evaluateRuleBased(answer, answerKey) {
   const key = answerKey[questionNumber];
   const logic = key.logic;
 
-  // Extract max marks from logic
+
   const maxMarksMatch = logic.match(/\(max mark\s*:\s*(\d+)\s*marks\)/i);
   const maxMarks = maxMarksMatch ? parseInt(maxMarksMatch[1]) : 0;
 
-  // Evaluate the answer
+
   let marks = 0;
   let reason = [];
 
-  if (questionNumber === "1") { // Example evaluation rule
+  if (questionNumber === "1") { 
     if (/speed.+scalar/i.test(answer.answer)) marks += 2;
     if (/example.+speed|\d+\s*m\/s/i.test(answer.answer)) marks += 1;
     if (/velocity.+vector/i.test(answer.answer)) marks += 2;
@@ -57,7 +56,6 @@ function evaluateRuleBased(answer, answerKey) {
   };
 }
 
-// Function to evaluate using LLM
 async function evaluateWithLLM(answer, answerKey) {
   const questionNumber = answer.marginNumber.toString();
 
@@ -73,7 +71,7 @@ async function evaluateWithLLM(answer, answerKey) {
 
   const key = answerKey[questionNumber];
 
-  // Extract max marks
+
   const maxMarksMatch = key.logic.match(/\(max mark\s*:\s*(\d+)\s*marks\)/i);
   const originalMaxMarks = maxMarksMatch ? parseInt(maxMarksMatch[1]) : 0;
 

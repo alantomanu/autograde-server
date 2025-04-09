@@ -98,7 +98,7 @@ async function processImageWithAI(pdfUrl, apiKey) {
 
         console.log('OCR processing completed');
         
-        // Parse the JSON string back to an object if it isn't already an object
+      
         const parsedResult = typeof result === 'string' ? JSON.parse(result) : result;
         console.log('Parsed result:', parsedResult);
         return parsedResult;
@@ -111,7 +111,7 @@ async function processImageWithAI(pdfUrl, apiKey) {
 
 async function convertPDFToImage(pdfPath, pageNumber, tempDir) {
     try {
-        // Create a base name for the output file without extension
+  
         const baseName = path.join(tempDir, `page-${pageNumber.toString().padStart(2, "0")}`);
         
         console.log('PDF conversion details:', {
@@ -121,10 +121,9 @@ async function convertPDFToImage(pdfPath, pageNumber, tempDir) {
             pageNumber
         });
 
-        // Ensure the directory exists
+      
         await fs.promises.mkdir(tempDir, { recursive: true });
-        
-        // Execute pdftoppm with more detailed options
+      
         const command = `pdftoppm -jpeg -f ${pageNumber} -l ${pageNumber} -r 300 "${pdfPath}" "${baseName}"`;
         console.log('Executing command:', command);
         
@@ -133,10 +132,10 @@ async function convertPDFToImage(pdfPath, pageNumber, tempDir) {
             console.error('pdftoppm stderr:', stderr);
         }
         
-        // Wait for the file system
+
         await new Promise(resolve => setTimeout(resolve, 2000));
         
-        // Check for both possible filenames
+  
         const possibleFiles = [
             `${baseName}-1.jpg`,
             `${baseName}-${pageNumber}.jpg`
@@ -159,7 +158,7 @@ async function convertPDFToImage(pdfPath, pageNumber, tempDir) {
             throw new Error(`PDF conversion failed: output file not created. Checked paths: ${possibleFiles.join(', ')}`);
         }
         
-        // Return the path to the found file
+       
         console.log('Successfully created image at:', outputFile);
         return outputFile;
     } catch (error) {
@@ -195,7 +194,7 @@ async function getMarkDown(params) {
                 },
             ],
             max_tokens: 1024,
-            temperature: 0.2, // Lower temperature for more accurate extraction
+            temperature: 0.2, 
         });
 
         return output?.choices[0]?.message?.content || "";
@@ -220,7 +219,7 @@ function encodeImage(filePath) {
             if (attempts === maxAttempts) {
                 throw error;
             }
-            // Wait 1 second before retrying
+           
             console.log(`Retry ${attempts} reading file: ${filePath}`);
             new Promise(resolve => setTimeout(resolve, 1000));
         }
@@ -254,7 +253,7 @@ function processPageText(
       const newMarginNumber = parseInt(marginMatch[1]);
       const answerText = marginMatch[2].trim();
       
-      // Always treat margin numbers as new answers on the last page
+
       if (newMarginNumber > 0 && newMarginNumber < 100) {
         if (currentMarginNumber !== null && currentAnswer.length > 0) {
           saveOrUpdateAnswer(responses, currentMarginNumber, currentAnswer.join(' ').trim());
@@ -274,7 +273,7 @@ function processPageText(
     }
   }
 
-  // Always save the final answer from this page
+
   if (currentMarginNumber !== null && currentAnswer.length > 0) {
     saveOrUpdateAnswer(responses, currentMarginNumber, currentAnswer.join(' ').trim());
   }
@@ -292,13 +291,13 @@ function saveOrUpdateAnswer(responses, marginNumber, answerText) {
   const existingIndex = responses.findIndex(r => r.marginNumber === marginNumber);
   
   if (existingIndex === -1) {
-    // Always create a new entry for a new margin number
+   
     responses.push({
       marginNumber,
       answer: answerText.trim()
     });
   } else {
-    // For existing answers, append with proper spacing
+   
     const existingAnswer = responses[existingIndex].answer;
     const needsSpace = existingAnswer && 
                       !existingAnswer.endsWith(' ') && 
@@ -314,7 +313,7 @@ async function ocr({
     apiKey,
     model = "Llama-3.2-90B-Vision",
 }) {
-    // Create a unique temp directory for this request
+ 
     const tempDir = path.join('./temp', Date.now().toString());
     console.log('Creating temp directory:', tempDir);
     
@@ -327,8 +326,7 @@ async function ocr({
             const tempPdfPath = path.join(tempDir, 'temp.pdf');
             localFilePath = await downloadFile(filePath, tempPdfPath);
             console.log('Downloaded to:', localFilePath);
-            
-            // Verify the downloaded file exists and has content
+       
             const stats = await fs.promises.stat(localFilePath);
             console.log('Downloaded file size:', stats.size);
             if (stats.size === 0) {
@@ -411,7 +409,7 @@ async function ocr({
             return JSON.stringify({ answers: allResponses }, null, 2);
         } else {
             console.log('Processing single image file');
-            // For single image files
+        
             const textOutput = await getMarkDown({
                 together: new Together({ apiKey }),
                 visionLLM: `meta-llama/${model}-Instruct-Turbo`,
@@ -426,7 +424,7 @@ async function ocr({
         console.error('Stack trace:', error.stack);
         throw error;
     } finally {
-        // Cleanup temp directory
+    
         try {
             if (fs.existsSync(tempDir)) {
                 const files = await fs.promises.readdir(tempDir);
@@ -442,16 +440,16 @@ async function ocr({
     }
 }
 
-// Add missing helper functions
+
 function isRemoteFile(filePath) {
     return filePath.startsWith('http://') || filePath.startsWith('https://');
 }
 
-// Add this at the end to catch unhandled promise rejections
+
 process.on('unhandledRejection', (error) => {
     console.error('Unhandled Promise Rejection:', error);
     console.error('Stack trace:', error.stack);
 });
 
-// Export using ES modules syntax
+
 export { processImageWithAI }; 
