@@ -1,4 +1,3 @@
-// Add dotenv import at the top
 import express from 'express';
 import cors from 'cors';
 import axios from 'axios';
@@ -240,10 +239,13 @@ app.post('/evaluate-single', async (req, res) => {
   }
 });
 
+app.get('/ping', (req, res) => {
+  res.send('pong');
+});
 
 app.use("/output", express.static(outputDir));
 
-// Start server
+
 
 
 app.listen(PORT, '0.0.0.0', () => {
