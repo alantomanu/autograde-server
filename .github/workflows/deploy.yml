@@ -29,6 +29,6 @@ jobs:
       - name: Redeploy Docker image to Koyeb
         uses: koyeb/action-git-deploy@v1
         with:
-          app-name: autograde-app
+          app-name: autograde-server
           service-name: autograde-server
           docker: alantomanu/autograde-server:latest
