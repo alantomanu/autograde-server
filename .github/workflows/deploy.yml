@@ -32,5 +32,5 @@ jobs:
           app-name: autograde-server
           service-name: autograde-server
           docker: alantomanu/autograde-server:latest
-          service-instance-type: micro 
-          service-regions: ""
+          service-instance-type: free
+          service-regions: fra
