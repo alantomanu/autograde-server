@@ -1,4 +1,4 @@
-name: Build and Deploy to Docker Hub
+name: Build and Deploy to Docker Hub and Koyeb
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main  # Runs only when push to main
 
 jobs:
-  build-and-push:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -21,7 +21,16 @@ jobs:
       - name: Push image to Docker Hub
         run: docker push alantomanu/autograde-server:latest
 
-      - name: Trigger Koyeb redeployment
-        run: |
-          curl -X POST https://app.koyeb.com/v1/services/6db51836-05ab-4bee-9fd7-729f96c1efb8/deploy \
-            -H "Authorization: Bearer ${{ secrets.KOYEB_API_TOKEN }}"
+      - name: Install and configure the Koyeb CLI
+        uses: koyeb-community/koyeb-actions@v2
+        with:
+          api_token: "${{ secrets.KOYEB_API_TOKEN }}"
+
+      - name: Redeploy Docker image to Koyeb
+        uses: koyeb/action-git-deploy@v1
+        with:
+          app-name: autograde-server
+          service-name: autograde-server
+          docker: alantomanu/autograde-server:latest
+          service-instance-type: free
+          service-regions: fra
