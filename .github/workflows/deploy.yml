@@ -1,4 +1,4 @@
-name: Build and Deploy
+name: Build and Deploy to Docker Hub
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main  # Runs only when push to main
 
 jobs:
-  build-and-deploy:
+  build-and-push:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
