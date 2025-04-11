@@ -11,10 +11,18 @@
   <img src="https://img.shields.io/badge/API-AutoGrade-blueviolet?style=for-the-badge" alt="AutoGrade Badge" />
   <img src="https://img.shields.io/badge/AI_Model-Meta_LLaMA_3-cc00ff?style=for-the-badge" alt="Meta LLaMA Badge" />
   <img src="https://img.shields.io/badge/PDF_Processing-Supported-11aa11?style=for-the-badge" alt="PDF Badge" />
-</p>
+ 
+<div align="center">
+  
+  ### 🌐 **API Endpoint**  **🔗 [shop-ease.koyeb.com](https://shop-ease.koyeb.app)** 
+  
+</div>
+ </p>
 
 
-## 📦 **Deployment Pipeline**
+
+
+### 📦 **Deployment Pipeline**
 
 <p align="center">
   <a href="https://koyeb.com">
