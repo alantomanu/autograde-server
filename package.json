@@ -26,7 +26,10 @@
         "together-ai": "^0.13.0"
     },
     "devDependencies": {
-        "nodemon": "^3.1.9"
+        "@babel/preset-env": "^7.28.3",
+        "jest": "^30.0.5",
+        "nodemon": "^3.1.9",
+        "supertest": "^7.1.4"
     },
     "keywords": [],
     "author": "",
