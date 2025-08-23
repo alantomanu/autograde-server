@@ -9,7 +9,15 @@ import { processImageWithAI } from './ocr.js';
 import { fileURLToPath } from 'url';
 import { extractTextFromPDF, parseAnswerKeyToJSON } from './pdfProcessor.js';
 import { evaluateAnswerSheet, evaluateSingleAnswer } from './evaluator.js';
+import { splitIntoParagraphs } from "../utils/pdf-utils.js";
 
+import {
+  initSchema,
+  upsertRagDocuments,
+  countDocuments,
+  retrieveCandidates,
+  rerank,
+} from "./rag-pg.js";
 
 dotenv.config();
 
@@ -36,6 +44,9 @@ app.use(fileUpload());
 app.use(express.json());
 
 
+app.use(express.static(path.join(__dirname, '../public')));
+
+
 const uploadDir = path.join(__dirname, "../uploads");
 const outputDir = path.join(__dirname, "../output");
 
@@ -58,115 +69,7 @@ async function createDirectory(path) {
 
 
 app.get("/", (req, res) => {
-  const apiDocs = `
-    <html>
-      <head>
-        <title>AutoGrade API Documentation</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            line-height: 1.6;
-          }
-          h1 {
-            color: #2c3e50;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
-          }
-          .endpoint {
-            background: #f8f9fa;
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 5px;
-          }
-          code {
-            background: #e9ecef;
-            padding: 2px 5px;
-            border-radius: 3px;
-          }
-          .method {
-            font-weight: bold;
-            color: #2c3e50;
-          }
-        </style>
-      </head>
-      <body>
-        <h1 style="text-align: center;">AutoGrade API Documentation</h1>
-        
-        <p style="text-align: center;">Welcome to the AutoGrade API! This service helps you automatically grade answer sheets and process PDFs. Here's how to use our endpoints:</p>
-
-        <div class="endpoint">
-          <h2>1. Perform OCR on PDF</h2>
-          <p><span class="method">POST</span> <code>/perform-ocr</code></p>
-          <p>Extract text from a PDF using OCR technology. This process involves extracting images from the PDF, sending them to Meta LLaMA 90B for text extraction, and converting the results into a structured JSON format.</p>
-          <p><strong>Request Body:</strong></p>
-          <code>
-            {
-              "pdfUrl": "URL_TO_YOUR_PDF"
-            }
-          </code>
-          <p><strong>Sample Output:</strong></p>
-          <pre><code>
-{
-  "margin_number": "1",
-  "answer": "Sample answer extracted from the PDF"
-}
-</code></pre>
-        </div>
-
-        <div class="endpoint">
-          <h2>2. Convert PDF to JSON</h2>
-          <p><span class="method">POST</span> <code>/convert-pdf</code></p>
-          <p>Convert a PDF answer key into structured JSON data using the PDF parse module. This module extracts text and formats it into JSON.</p>
-          <p><strong>Request Body:</strong></p>
-          <code>
-            {
-              "pdfUrl": "URL_TO_YOUR_PDF"
-            }
-          </code>
-          <p><strong>Sample Output:</strong></p>
-          <pre><code>
-{
-  "questions": [
-    {
-      "question_number": "1",
-      "logic": "Question: QUESTION_TEXT | Definition: X mark | Equation: Y mark | Unit: Z mark <br> &nbsp;&nbsp;&nbsp&nbsp&nbsp&nbsp;Irrelevant Data: W mark (max mark: TOTAL marks)",
-      "diagram": true
-    },
-    
-  ]
-}
-</code></pre>
-        </div>
-
-        <div class="endpoint">
-          <h2>3. Evaluate Answer Sheet</h2>
-          <p><span class="method">POST</span> <code>/evaluate</code></p>
-          <p>Evaluate a complete answer sheet against an answer key using Meta LLaMA 3.3 70B. This AI model compares the student's answers with the answer key and provides a detailed evaluation.</p>
-          <p><strong>Request Body:</strong></p>
-          <p>Send the answer sheet data and answer key in the request body.</p>
-        </div>
-
-        <footer style="text-align: center; font-family: Arial, sans-serif; margin-top: 40px; padding: 20px; background-color: #f5f5f5; border-top: 1px solid #ddd;">
-          <p style="margin: 8px 0; font-size: 16px;">
-            For any questions or issues, please contact at 
-            <a href="mailto:alantomanu501@gmail.com" style="color: #007BFF; text-decoration: none;">alantomanu501@gmail.com</a>
-          </p>
-          <p style="margin: 8px 0; font-size: 14px; color: #555;">
-            &copy; <span id="year"></span> Autograde. All rights reserved.
-          </p>
-        </footer>
-
-        <script>
-          // Automatically set current year
-          document.getElementById("year").textContent = new Date().getFullYear();
-        </script>
-      </body>
-    </html>
-  `;
-  res.send(apiDocs);
+  res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
 
@@ -238,6 +141,87 @@ app.post('/evaluate-single', async (req, res) => {
     res.status(500).json({ success: false, error: "Internal server error: " + error.message });
   }
 });
+
+
+
+
+// ---- RAG: init schema (one-time safe)
+app.post("/rag/init", async (_req, res) => {
+  try {
+    await initSchema();
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ---- RAG: upload PDF -> paragraphs -> embed -> store
+app.post("/knowledgebase", async (req, res) => {
+  try {
+    if (!req.files || !req.files.pdf) {
+      return res.status(400).json({ success: false, error: "No PDF file uploaded" });
+    }
+    const pdfFile = req.files.pdf;
+    const text = await extractTextFromPDF(pdfFile.data);
+    const paragraphs = splitIntoParagraphs(text);
+    if (!paragraphs.length) {
+      return res.status(400).json({ success: false, error: "No valid paragraphs found" });
+    }
+
+    const docs = paragraphs.map((p, i) => ({
+      content: p,
+      metadata: { type: "pdf_upload", source: pdfFile.name, paragraph: i + 1 },
+    }));
+
+    await upsertRagDocuments(docs);
+
+    res.json({
+      success: true,
+      message: `Inserted ${docs.length} paragraphs`,
+      file: pdfFile.name,
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message || "Failed to process PDF" });
+  }
+});
+
+// ---- RAG: search + local re-ranking
+//   /search?q=chromosomes&k=5&fetchK=20
+app.get("/search", async (req, res) => {
+  try {
+    const q = (req.query.q || "").toString();
+    const k = parseInt(req.query.k || "5", 10);
+    const fetchK = parseInt(req.query.fetchK || "20", 10);
+    if (!q) return res.status(400).json({ success: false, error: "Missing q" });
+
+    const candidates = await retrieveCandidates(q, fetchK);
+    const ranked = await rerank(q, candidates, k);
+
+    res.json({
+      success: true,
+      query: q,
+      topK: k,
+      results: ranked,
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+
+app.get("/status", async (_req, res) => {
+  try {
+    const count = await countDocuments();
+    res.json({ success: true, total_paragraphs: count });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+
+
+
+
 
 app.get('/ping', (req, res) => {
   res.send('pong');

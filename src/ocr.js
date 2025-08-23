@@ -353,7 +353,7 @@ async function ocr({
                     : `meta-llama/${model}-Instruct-Turbo`;
 
                 const together = new Together({ apiKey });
-                
+                console.log("api key=============================================>",apiKey)
                 const contextPrompt = `
                     Extract all answers from this exam answer sheet. Each answer begins with a margin number (e.g., "1.", "2.", etc.).
 
